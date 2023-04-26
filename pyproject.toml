@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "mtcnn-pytorch"
+version = "0.1.0"
+description = "A PyTorch implementation for MTCNN"
+authors = ["Yurzi <yurzi@foxmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "mtcnn"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+wandb = "^0.15.0"
+torch = { version = "^2.0.0", source = "torch-cu118" }
+torchvision = { version = "^0.15.0", source = "torch-cu118" }
+torchaudio = { version = "^2.0.0", source = "torch-cu118" }
+
+[[tool.poetry.source]]
+name = "torch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+default = false
+secondary = true
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
