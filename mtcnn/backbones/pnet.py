@@ -11,7 +11,7 @@ class PNet(nn.Module):
         # PReLU(num_parameters)
         self.prelu1 = nn.PReLU(10)
         # MaxPool2d(kernel_size, stride, padding, ceil_mode)
-        self.maxpool1 = nn.MaxPool2d(3, 2, ceil_mode=True)
+        self.maxpool1 = nn.MaxPool2d(2, 2, ceil_mode=True)
 
         self.conv2 = nn.Conv2d(10, 16, 3)
         self.prelu2 = nn.PReLU(16)
