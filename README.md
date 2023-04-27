@@ -29,7 +29,7 @@ conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvi
 ```
 
 Second. Install poetry with conda.
-```
+```shell
 # ref: https://anaconda.org/conda-forge/poetry
 conda install -c conda-forge poetry
 ```
