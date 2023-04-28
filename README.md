@@ -122,7 +122,7 @@ For p|o|rnet.
 # annotations.txt
 # image_name classification(0|1|2) gt_bbox[] gt_landmark[]
 # classification(0|1|2)
-# 0 = negative; 1 = part; 2 = positive
+# 0 = negative; 1 = positive; 2 = part
 # if classification is negative, the gt_bbox[] and gt_landmark[] will be ignored.
 # if classification is part, the gt_landmark[] will be ignored.
 # gt_bbox[]
