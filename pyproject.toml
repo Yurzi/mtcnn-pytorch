@@ -10,15 +10,10 @@ packages = [{include = "mtcnn"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 wandb = "^0.15.0"
-torch = { version = "^2.0.0", source = "torch-cu118" }
-torchvision = { version = "^0.15.0", source = "torch-cu118" }
-torchaudio = { version = "^2.0.0", source = "torch-cu118" }
 
-[[tool.poetry.source]]
-name = "torch-cu118"
-url = "https://download.pytorch.org/whl/cu118"
-default = false
-secondary = true
+[tool.poetry.group.dev.dependencies]
+isort = "^5.12.0"
+black = "^23.3.0"
 
 [build-system]
 requires = ["poetry-core"]
