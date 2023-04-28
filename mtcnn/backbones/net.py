@@ -42,9 +42,12 @@ class PNet(nn.Module):
         x = self.conv3(x)
         feature = self.prelu3(x)
 
-        prob = F.softmax(self.conv4_1(feature), dim=1)
+        prob = self.conv4_1(feature)
         offset = self.conv4_2(feature)
         landmark = self.conv4_3(feature)
+
+        if not self.training:
+            prob = F.softmax(prob, dim=1)
 
         return prob, offset, landmark
 
@@ -97,9 +100,12 @@ class RNet(nn.Module):
         x = self.fc1(x)
         feature = self.prelu4(x)
 
-        prob = F.softmax(self.fc2_1(feature), dim=1)
+        prob = self.fc2_1(feature)
         offset = self.fc2_2(feature)
         landmark = self.fc2_3(feature)
+
+        if not self.training:
+            prob = F.softmax(prob, dim=1)
 
         return prob, offset, landmark
 
@@ -163,8 +169,11 @@ class ONet(nn.Module):
         x = self.batch_norm1(x)
         feature = self.prelu5(x)
 
-        prob = F.softmax(self.fc2_1(feature), dim=1)
+        prob = self.fc2_1(feature)
         offset = self.fc2_2(feature)
         landmark = self.fc2_3(feature)
+
+        if not self.training:
+            prob = F.softmax(prob, dim=1)
 
         return prob, offset, landmark
