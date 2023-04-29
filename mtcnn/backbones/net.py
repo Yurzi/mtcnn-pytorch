@@ -5,6 +5,8 @@ import torch.nn.functional as F
 class PNet(nn.Module):
     def __init__(self) -> None:
         super(PNet, self).__init__()
+        # store feature_map for other usage
+        self.feature_map = None
 
         # Conv2d(in_channels, out_channels, kernel_size)
         self.conv1 = nn.Conv2d(3, 10, 3)
@@ -18,6 +20,8 @@ class PNet(nn.Module):
 
         self.conv3 = nn.Conv2d(16, 32, 3)
         self.prelu3 = nn.PReLU(32)
+
+        self.flat = nn.Flatten()
 
         self.conv4_1 = nn.Conv2d(32, 2, 1)
         self.conv4_2 = nn.Conv2d(32, 4, 1)
@@ -41,10 +45,12 @@ class PNet(nn.Module):
 
         x = self.conv3(x)
         feature = self.prelu3(x)
+        # store feature_map
+        self.feature_map = feature
 
-        prob = self.conv4_1(feature)
-        offset = self.conv4_2(feature)
-        landmark = self.conv4_3(feature)
+        prob = self.flat(self.conv4_1(feature))
+        offset = self.flat(self.conv4_2(feature))
+        landmark = self.flat(self.conv4_3(feature))
 
         if not self.training:
             prob = F.softmax(prob, dim=1)
@@ -55,6 +61,8 @@ class PNet(nn.Module):
 class RNet(nn.Module):
     def __init__(self) -> None:
         super(RNet, self).__init__()
+        # store feature_map for other usage
+        self.feature_map = None
 
         # Conv2d(in_channels, out_channels, kernel_size)
         self.conv1 = nn.Conv2d(3, 28, 3)
@@ -69,6 +77,8 @@ class RNet(nn.Module):
 
         self.conv3 = nn.Conv2d(48, 64, 2)
         self.prelu3 = nn.PReLU(64)
+
+        self.flat = nn.Flatten()
 
         self.fc1 = nn.Linear(3 * 3 * 64, 128)
         self.prelu4 = nn.PReLU(128)
@@ -97,8 +107,12 @@ class RNet(nn.Module):
         x = self.conv3(x)
         x = self.prelu3(x)
 
+        x = self.flat(x)
+
         x = self.fc1(x)
         feature = self.prelu4(x)
+        # store feature_map
+        self.feature_map = feature
 
         prob = self.fc2_1(feature)
         offset = self.fc2_2(feature)
@@ -113,6 +127,8 @@ class RNet(nn.Module):
 class ONet(nn.Module):
     def __init__(self) -> None:
         super(ONet, self).__init__()
+        # store feature_map for other usage
+        self.feature_map = None
 
         # Conv2d(in_channels, out_channels, kernel_size)
         self.conv1 = nn.Conv2d(3, 32, 3)
@@ -131,6 +147,8 @@ class ONet(nn.Module):
 
         self.conv4 = nn.Conv2d(64, 128, 2)
         self.prelu4 = nn.PReLU(128)
+
+        self.flat = nn.Flatten()
 
         self.fc1 = nn.Linear(3 * 3 * 128, 256)
         self.batch_norm1 = nn.BatchNorm1d(256)
@@ -165,9 +183,13 @@ class ONet(nn.Module):
         x = self.conv4(x)
         x = self.prelu4(x)
 
+        x = self.flat(x)
+
         x = self.fc1(x)
         x = self.batch_norm1(x)
         feature = self.prelu5(x)
+        # store feature_map
+        self.feature_map = feature
 
         prob = self.fc2_1(feature)
         offset = self.fc2_2(feature)
