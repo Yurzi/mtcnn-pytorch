@@ -58,25 +58,25 @@ You can configure the partition ratio by using a configuration file(described be
 dataset
     ├── eval                (can be generated)
     │   ├── annotations.txt
-    │   └── imges
+    │   └── images
     ├── onet                (can be generated)
     │   ├── annotations.txt
-    │   └── imges
+    │   └── images
     ├── pnet                (can be generated)
     │   ├── annotations.txt
-    │   └── imges
+    │   └── images
     ├── raw
     │   ├── annotations.txt
     │   ├── eval.txt        (can be generated)
-    │   ├── imges
+    │   ├── images
     │   ├── test.txt        (can be generated)
     │   └── train.txt       (can be generated)
     ├── rnet                (can be generated)
     │   ├── annotations.txt
-    │   └── imges
+    │   └── images
     └── test                (can be generated)
         ├── annotations.txt
-        └── imges
+        └── images
 ```
 ### Generate From Raw Manually
 

@@ -5,6 +5,9 @@ from PIL import Image
 from torch.utils.data import Dataset
 from utils.dataset import prase_anno_line, prase_raw_anno_line, write_anno_file
 from utils.functional import random_picker, split_num
+from utils.logger import ConsoleLogWriter, Logger
+
+logger = Logger(ConsoleLogWriter())
 
 
 class MTCNNRawDataset(Dataset):
@@ -39,6 +42,11 @@ class MTCNNRawDataset(Dataset):
         image_path, bbox, landmark = self.annotations[index]
         # read image from image_path to PILImage
         img = self.loader(os.path.join(self.image_dir, image_path))
+
+        # do some transform
+        if self.transform is not None:
+            img = self.transform(img)
+
         return img, bbox, landmark
 
     def pil_loader(self, path: str) -> Image.Image:
@@ -74,10 +82,12 @@ class MTCNNRawDataset(Dataset):
         # check parms
         train_ratio, eval_ratio, test_ratio = ratio
         assert train_ratio >= 0 and eval_ratio >= 0 and test_ratio >= 0, "ratio must be positive"
+        logger({"INFO": "make dataset for raw"})
 
         raw_perfix = os.path.join(perfix, MTCNNRawDataset.dirname)
         # read annotations from annotations.txt, line by line
         raw_annotations = list()
+        logger({"INFO": "read annotations from " + raw_perfix + "/annotations.txt"})
         with open(os.path.join(raw_perfix, "annotations.txt"), "r") as f:
             for line in f.readlines():
                 line = line.strip()
@@ -87,12 +97,23 @@ class MTCNNRawDataset(Dataset):
                 image_path, bbox, landmark = prase_raw_anno_line(line)
                 raw_annotations.append((image_path, bbox, landmark))
         total_num = len(raw_annotations)
+        logger({"INFO": "total annotations num: " + str(total_num)})
 
         # normalize ratio and get select num
         train_ratio = train_ratio / sum(ratio)
         eval_ratio = eval_ratio / sum(ratio)
         test_ratio = test_ratio / sum(ratio)
         train_num, eval_num, test_num = split_num(total_num, (train_ratio, eval_ratio, test_ratio))
+        logger(
+            {
+                "INFO": "train num: "
+                + str(train_num)
+                + " eval num:"
+                + str(eval_num)
+                + " test num:"
+                + str(test_num)
+            }
+        )
 
         # split raw_annotations into train, eval, test
         train_annotations, rest_annotations = random_picker(raw_annotations, train_num)
@@ -102,6 +123,8 @@ class MTCNNRawDataset(Dataset):
         write_anno_file(os.path.join(perfix, "train.txt"), train_annotations)
         write_anno_file(os.path.join(perfix, "eval.txt"), eval_annotations)
         write_anno_file(os.path.join(perfix, "test.txt"), test_annotations)
+
+        logger({"INFO": "make dataset for raw done"})
 
 
 class MTCNNDataset(Dataset):
