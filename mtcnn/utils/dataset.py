@@ -1,3 +1,6 @@
+import os
+from typing import List, Tuple
+
 import torch
 
 
@@ -44,3 +47,14 @@ def prase_anno_line(line: str):
     landmark = torch.tensor([float(x) for x in items[6:16]])
 
     return image_path, cls_label, bbox, landmark
+
+
+def write_anno_file(path: os.PathLike | str, annotations: List[Tuple]) -> None:
+    # string format is a file path
+    if isinstance(path, str):
+        path = os.fspath(path)
+
+    with open(path, "w") as f:
+        for anno in annotations:
+            line = " ".join([str(x) for x in anno])
+            f.write(line + "\n")

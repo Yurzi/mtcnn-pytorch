@@ -1,9 +1,10 @@
 import os
-from typing import Any
+from typing import Any, Tuple
 
 from PIL import Image
 from torch.utils.data import Dataset
-from utils.dataset import prase_raw_anno_line
+from utils.dataset import prase_anno_line, prase_raw_anno_line, write_anno_file
+from utils.functional import random_picker, split_num
 
 
 class MTCNNRawDataset(Dataset):
@@ -12,7 +13,7 @@ class MTCNNRawDataset(Dataset):
     """
 
     dirname = "raw"
-    image_dir_prefix = "imges"
+    image_dir_prefix = "images"
 
     def __init__(self, perfix: str, transform=None):
         super(MTCNNRawDataset, self).__init__()
@@ -60,3 +61,50 @@ class MTCNNRawDataset(Dataset):
             return self.accimage_loader(path)
         else:
             return self.pil_loader(path)
+
+    @staticmethod
+    def make_dataset(perfix: str, ratio: Tuple[float, float, float]) -> None:
+        """
+        generate train, eval, test annotation file from raw
+
+        Input:
+            perfix: dataset folder perfix
+            ratio: train, eval, test segment ratio
+        """
+        # check parms
+        train_ratio, eval_ratio, test_ratio = ratio
+        assert train_ratio >= 0 and eval_ratio >= 0 and test_ratio >= 0, "ratio must be positive"
+
+        raw_perfix = os.path.join(perfix, MTCNNRawDataset.dirname)
+        # read annotations from annotations.txt, line by line
+        raw_annotations = list()
+        with open(os.path.join(raw_perfix, "annotations.txt"), "r") as f:
+            for line in f.readlines():
+                line = line.strip()
+                if line == "":
+                    continue
+                # prase a raw annotation line
+                image_path, bbox, landmark = prase_raw_anno_line(line)
+                raw_annotations.append((image_path, bbox, landmark))
+        total_num = len(raw_annotations)
+
+        # normalize ratio and get select num
+        train_ratio = train_ratio / sum(ratio)
+        eval_ratio = eval_ratio / sum(ratio)
+        test_ratio = test_ratio / sum(ratio)
+        train_num, eval_num, test_num = split_num(total_num, (train_ratio, eval_ratio, test_ratio))
+
+        # split raw_annotations into train, eval, test
+        train_annotations, rest_annotations = random_picker(raw_annotations, train_num)
+        eval_annotations, test_annotations = random_picker(rest_annotations, eval_num)
+
+        # write annotations to train, eval, test annotation file
+        write_anno_file(os.path.join(perfix, "train.txt"), train_annotations)
+        write_anno_file(os.path.join(perfix, "eval.txt"), eval_annotations)
+        write_anno_file(os.path.join(perfix, "test.txt"), test_annotations)
+
+
+class MTCNNDataset(Dataset):
+    """
+    Dataset for mtcnn train(pnet, rnet, onet), eval and test data
+    """
