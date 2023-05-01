@@ -30,3 +30,15 @@ def split_num(total_num, ratio: Tuple) -> Tuple:
             split_nums[i] += 1
 
     return tuple(split_nums)
+
+
+def default_scale_step(stop: float, num: int, start: float = 1):
+    """
+    generate scale [start, stop]
+    """
+    # use a linear way to generate scale
+    assert start > 0 and stop > 0 and num > 0, "start, stop, num must be positive"
+    step = (stop - start) / (num - 1)
+
+    while num > 0:
+        yield start + (num - 1) * step

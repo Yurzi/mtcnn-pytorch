@@ -1,7 +1,8 @@
 import os
-from typing import List, Tuple
+from typing import Generator, List, Tuple
 
 import torch
+from torchvision import transforms
 
 
 def prase_raw_anno_line(line: str):
@@ -68,3 +69,31 @@ def write_anno_file(path: os.PathLike | str, annotations: List[Tuple]) -> None:
 
             line = " ".join([str(x) for x in write_buf])
             f.write(line + "\n")
+
+
+def construct_image_pyramid(
+    original: torch.Tensor, step_fn: Generator[float, None, None]
+) -> List[torch.Tensor]:
+    """
+    construct image pyramid from original image
+    Input:
+        original: original image
+        step_fn: a generator that generate a scale factor
+
+    Output:
+        list of image [biggest size -> smallset size]
+    """
+    res: List[torch.Tensor] = list()
+    ori_width = original.shape[2]
+    ori_height = original.shape[1]
+
+    for scale_factor in step_fn:
+        transform = transforms.Compose(
+            [
+                transforms.Resize((ori_height * scale_factor, ori_width * scale_factor)),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
+        res.append(transform(original))
+
+    return res

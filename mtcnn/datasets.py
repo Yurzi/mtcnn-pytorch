@@ -1,11 +1,18 @@
 import os
 from typing import Any, Tuple
 
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
+from torchvision import transforms
 
-from .utils.dataset import prase_anno_line, prase_raw_anno_line, write_anno_file
-from .utils.functional import random_picker, split_num
+from .utils.dataset import (
+    construct_image_pyramid,
+    prase_anno_line,
+    prase_raw_anno_line,
+    write_anno_file,
+)
+from .utils.functional import default_scale_step, random_picker, split_num
 from .utils.logger import ConsoleLogWriter, Logger
 
 logger = Logger(ConsoleLogWriter())
@@ -132,3 +139,113 @@ class MTCNNDataset(Dataset):
     """
     Dataset for mtcnn train(pnet, rnet, onet), eval and test data
     """
+
+    supported_type = ["pnet", "rnet", "onet", "eval", "test"]
+    train_type = ["pnet", "rnet", "onet"]
+    image_dir_prefix = "images"
+
+    def __init__(self, perfix: str, task_type: str, transform=None):
+        # check type
+        if task_type not in self.supported_type:
+            raise NotImplementedError("not support type for " + task_type)
+
+        self.task_type = task_type
+        self.transform = (
+            transforms.Compose(
+                [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+            )
+            if transform is None
+            else transform
+        )
+        self.loader = self.default_loader
+
+        # properties settings for different task
+        if self.task_type in self.train_type:
+            self.dirname = task_type
+            self.annotation_basename = "annotations.txt"
+        else:
+            self.dirname = "raw"
+            self.annotation_basename = task_type + ".txt"
+
+        self.dir = os.path.join(perfix, self.dirname)
+        self.image_dir = os.path.join(self.dir, self.image_dir_prefix)
+
+        # read annotations from annotations file, line by line
+        self.annotations = list()
+        with open(os.path.join(self.dir, self.annotation_basename), "r") as f:
+            for line in f.readlines():
+                line = line.strip()
+                if line == "":
+                    continue
+                # prase a annotation line
+                if self.task_type in self.train_type:
+                    image_path, cls_label, bbox, landmark = prase_anno_line(line)
+                    self.annotations.append((image_path, cls_label, bbox, landmark))
+                else:
+                    # use raw annotation format
+                    image_path, bbox, landmark = prase_raw_anno_line(line)
+                    self.annotations.append((image_path, bbox, landmark))
+
+    def __len__(self) -> int:
+        return len(self.annotations)
+
+    def __getitem__(self, idx) -> Any:
+        # if the dataset is train type, some anno transform should be done
+        if self.task_type in self.train_type:
+            image_path, cls_label, bbox, landmark = self.annotations[idx]
+            # load img from image_path
+            img = self.loader(image_path)
+            # do image transform
+            if self.transform is not None:
+                img = self.transform(img)
+            # generate type indicator
+            cls_type_indicator = torch.tensor([1])  # all data can be used to classification task
+            # only pos and part data can be used to bbox task
+            bbox_type_indicator = torch.tensor([1]) if cls_label in [1, 2] else torch.tensor([0])
+            # only pos data can be used to landmark task
+            landmark_type_indicator = torch.tensor([1]) if cls_label == 1 else torch.tensor([0])
+
+            # change cls_label to binary class, only positive sample is target
+            cls_label = 1 if cls_label == 1 else 0
+
+            # return image, (cls_label, bbox, landmark), (cls_type_indicator, bbox_type_indicator, landmark_type_indicator)
+            return (
+                img,
+                (cls_label, bbox, landmark),
+                (cls_type_indicator, bbox_type_indicator, landmark_type_indicator),
+            )
+        else:
+            # if the dataset  is eval or test type, perferom like raw dataset, but we need image pyramid
+            image_path, bbox, landmark = self.annotations[idx]
+            # load img from image_path
+            img = self.loader(image_path)
+            # do image transform
+            if self.transform is not None:
+                img = self.transform(img)
+
+            # generate image pyramid
+            images_pyramid = construct_image_pyramid(img, default_scale_step(0.4, 5))
+
+            # return images[], bbox, landmark
+            return images_pyramid, bbox, landmark
+
+    def pil_loader(self, path: str) -> Image.Image:
+        with open(path, "rb") as f:
+            img = Image.open(f)
+            return img.convert("RGB")
+
+    def accimage_loader(self, path: str) -> Any:
+        import accimage
+
+        try:
+            return accimage.Image(path)
+        except OSError:
+            return self.pil_loader(path)
+
+    def default_loader(self, path: str) -> Any:
+        from torchvision import get_image_backend
+
+        if get_image_backend() == "accimage":
+            return self.accimage_loader(path)
+        else:
+            return self.pil_loader(path)
