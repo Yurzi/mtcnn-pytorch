@@ -4,6 +4,8 @@ from typing import Generator, List, Tuple
 import torch
 from torchvision import transforms
 
+from mtcnn.utils.harverster import harverst_train_set_frow_raw
+
 
 def prase_raw_anno_line(line: str):
     """
@@ -13,8 +15,8 @@ def prase_raw_anno_line(line: str):
 
     # image path
     image_path = ""
-    bbox = torch.empty(4)
-    landmark = torch.empty(10)
+    bbox = None
+    landmark = None
 
     if len(items) == 1:
         image_path = items[0]
@@ -59,11 +61,15 @@ def write_anno_file(path: os.PathLike | str, annotations: List[Tuple]) -> None:
         for anno in annotations:
             write_buf = list()
             for item in anno:
+                if item is None:
+                    continue
                 if isinstance(item, torch.Tensor):
                     item = item.tolist()
                     write_buf.extend(item)
                 elif isinstance(item, str):
                     write_buf.append(item)
+                elif isinstance(item, int):
+                    write_buf.append(str(item))
                 else:
                     raise TypeError("bad annotations type")
 
@@ -97,3 +103,29 @@ def construct_image_pyramid(
         res.append(transform(original))
 
     return res
+
+
+def gen_train_set_frow_raw(raw_dataset, dir: str, crop_size: Tuple[int, int]):
+    # check dir exist or create it
+    image_path_perfix = "images"
+    annotation_basename = "annotations.txt"
+
+    image_dir = os.path.join(dir, image_path_perfix)
+    annotation_path = os.path.join(dir, annotation_basename)
+
+    if not os.path.exists(image_dir):
+        os.makedirs(image_dir)
+
+    annotations = list()
+    counter = 0
+    for image, cls_label, bbox, landmark in harverst_train_set_frow_raw(raw_dataset, crop_size):
+        image_path = str(counter) + ".jpg"
+        counter += 1
+
+        annotations.append((image_path, cls_label, bbox, landmark))
+        pil_imge = transforms.ToPILImage()(image)
+
+        pil_imge.save(os.path.join(image_dir, image_path))
+
+    # write annotations file
+    write_anno_file(annotation_path, annotations)

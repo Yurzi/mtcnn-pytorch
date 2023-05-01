@@ -25,16 +25,34 @@ class MTCNNRawDataset(Dataset):
 
     dirname = "raw"
     image_dir_prefix = "images"
+    supported_type = ["general", "train", "eval", "test"]
 
-    def __init__(self, perfix: str, transform=None):
+    def __init__(self, perfix: str, dataset_type: str = "general", transform=None):
         super(MTCNNRawDataset, self).__init__()
+        # check dataset_type
+        if dataset_type not in self.supported_type:
+            raise NotImplementedError("dataset_type must be one of " + str(self.supported_type))
+
+        # set some properties
         self.dir = os.path.join(perfix, self.dirname)
         self.image_dir = os.path.join(self.dir, self.image_dir_prefix)
         self.loader = self.default_loader
-        self.transform = transform
+        self.transform = (
+            transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                ]
+            )
+            if transform is None
+            else transform
+        )
+
+        self.annotation_basename = (
+            "annotations.txt" if dataset_type == "general" else dataset_type + ".txt"
+        )
         # read annotations from annotations.txt, line by line
         self.annotations = list()
-        with open(os.path.join(self.dir, "annotations.txt"), "r") as f:
+        with open(os.path.join(self.dir, self.annotation_basename), "r") as f:
             for line in f.readlines():
                 line = line.strip()
                 if line == "":
@@ -46,8 +64,12 @@ class MTCNNRawDataset(Dataset):
     def __len__(self) -> int:
         return len(self.annotations)
 
-    def __getitem__(self, index) -> Any:
-        image_path, bbox, landmark = self.annotations[index]
+    def __getitem__(self, idx) -> Any:
+        # make it iterabale
+        if idx >= len(self):
+            raise IndexError("index out of range")
+
+        image_path, bbox, landmark = self.annotations[idx]
         # read image from image_path to PILImage
         img = self.loader(os.path.join(self.image_dir, image_path))
 
@@ -55,6 +77,7 @@ class MTCNNRawDataset(Dataset):
         if self.transform is not None:
             img = self.transform(img)
 
+        # on defualt transform , the img is torch.Tensor(C, H, W) not normalized
         return img, bbox, landmark
 
     def pil_loader(self, path: str) -> Image.Image:
@@ -81,7 +104,7 @@ class MTCNNRawDataset(Dataset):
     @staticmethod
     def make_dataset(perfix: str, ratio: Tuple[float, float, float]) -> None:
         """
-        generate train, eval, test annotation file from raw
+        generate train, eval, test annotation file from general
 
         Input:
             perfix: dataset folder perfix
@@ -145,6 +168,7 @@ class MTCNNDataset(Dataset):
     image_dir_prefix = "images"
 
     def __init__(self, perfix: str, task_type: str, transform=None):
+        super(MTCNNDataset, self).__init__()
         # check type
         if task_type not in self.supported_type:
             raise NotImplementedError("not support type for " + task_type)
@@ -190,6 +214,9 @@ class MTCNNDataset(Dataset):
         return len(self.annotations)
 
     def __getitem__(self, idx) -> Any:
+        # make it iterabale
+        if idx >= len(self):
+            raise IndexError("index out of range")
         # if the dataset is train type, some anno transform should be done
         if self.task_type in self.train_type:
             image_path, cls_label, bbox, landmark = self.annotations[idx]
