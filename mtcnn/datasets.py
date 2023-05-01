@@ -3,9 +3,10 @@ from typing import Any, Tuple
 
 from PIL import Image
 from torch.utils.data import Dataset
-from utils.dataset import prase_anno_line, prase_raw_anno_line, write_anno_file
-from utils.functional import random_picker, split_num
-from utils.logger import ConsoleLogWriter, Logger
+
+from .utils.dataset import prase_anno_line, prase_raw_anno_line, write_anno_file
+from .utils.functional import random_picker, split_num
+from .utils.logger import ConsoleLogWriter, Logger
 
 logger = Logger(ConsoleLogWriter())
 
@@ -120,9 +121,9 @@ class MTCNNRawDataset(Dataset):
         eval_annotations, test_annotations = random_picker(rest_annotations, eval_num)
 
         # write annotations to train, eval, test annotation file
-        write_anno_file(os.path.join(perfix, "train.txt"), train_annotations)
-        write_anno_file(os.path.join(perfix, "eval.txt"), eval_annotations)
-        write_anno_file(os.path.join(perfix, "test.txt"), test_annotations)
+        write_anno_file(os.path.join(raw_perfix, "train.txt"), train_annotations)
+        write_anno_file(os.path.join(raw_perfix, "eval.txt"), eval_annotations)
+        write_anno_file(os.path.join(raw_perfix, "test.txt"), test_annotations)
 
         logger({"INFO": "make dataset for raw done"})
 

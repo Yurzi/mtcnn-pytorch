@@ -56,5 +56,15 @@ def write_anno_file(path: os.PathLike | str, annotations: List[Tuple]) -> None:
 
     with open(path, "w") as f:
         for anno in annotations:
-            line = " ".join([str(x) for x in anno])
+            write_buf = list()
+            for item in anno:
+                if isinstance(item, torch.Tensor):
+                    item = item.tolist()
+                    write_buf.extend(item)
+                elif isinstance(item, str):
+                    write_buf.append(item)
+                else:
+                    raise TypeError("bad annotations type")
+
+            line = " ".join([str(x) for x in write_buf])
             f.write(line + "\n")
