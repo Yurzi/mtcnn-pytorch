@@ -201,6 +201,17 @@ files = [
 six = ">=1.4.0"
 
 [[package]]
+name = "easydict"
+version = "1.10"
+description = "Access dict values as attributes (works recursively)."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "easydict-1.10.tar.gz", hash = "sha256:11dcb2c20aaabbfee4c188b4bc143ef6be044b34dbf0ce5a593242c2695a080f"},
+]
+
+[[package]]
 name = "gitdb"
 version = "4.0.10"
 description = "Git Object Database"
@@ -683,4 +694,4 @@ sweeps = ["sweeps (>=0.2.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "d9d90bc599464285427c06a3a2c108fa6c9358438870971a29de4cd3e260581b"
+content-hash = "a7f12ec081ba96dde194634d7aa1636d39152251fe24ada96390c20352fb87ac"

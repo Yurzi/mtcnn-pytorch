@@ -10,6 +10,7 @@ packages = [{include = "mtcnn"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 wandb = "^0.15.0"
+easydict = "^1.10"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^5.12.0"

@@ -63,7 +63,12 @@ def construct_image_pyramid(
 
 
 def generate_train_set_from_raw(
-    raw_dataset, perfix, target_size, anchor_fn: Callable | int, harverster: Callable | None = None
+    raw_dataset,
+    perfix,
+    target_size,
+    anchor_fn: Callable | int,
+    harverster: Callable | None = None,
+    config=None,
 ):
     image_dir_perfix = "images"
     image_dir = os.path.join(perfix, image_dir_perfix)
@@ -78,6 +83,13 @@ def generate_train_set_from_raw(
     part_num = 25
     iou_threshold_2 = 0.7
     pos_num = 75
+
+    if config is not None:
+        neg_num = config.negative_num
+        iou_threshold_1 = config.iou_threshold_1
+        part_num = config.part_num
+        iou_threshold_2 = config.iou_threshold_2
+        pos_num = config.positive_num
 
     logger.info("trying to generate in " + perfix)
 
@@ -116,7 +128,7 @@ def generate_train_set_from_raw(
         resized_img = VF.resize(cropped_img, list(target_size), antialias=True)
         pil_image = VF.to_pil_image(resized_img)
         pil_image.save(image_path)
-        logger.info(f"[{counter}/{total_num}] save image: " + image_path)
+        logger.info(f"[{counter+1}/{total_num}] save image: " + image_path)
 
     for img, bbox, landmark in raw_dataset:
         if harverster is None:
