@@ -1,80 +1,37 @@
 import os
-from typing import Generator, List, Tuple
+from collections.abc import Callable
+from typing import Generator, List
 
 import torch
+import torchvision.transforms.functional as VF
 from torchvision import transforms
 
-from mtcnn.utils.harverster import harverst_train_set_frow_raw
+from mtcnn.utils.filesystem import check_and_reset
+from mtcnn.utils.harverster import RandomHarvester
+from mtcnn.utils.logger import ConsoleLogWriter, DebugLogger
+from mtcnn.utils.parse import write_anno_file
+
+logger = DebugLogger(__name__, ConsoleLogWriter())
 
 
-def prase_raw_anno_line(line: str):
-    """
-    parse a line of annotation under raw folder, return a tuple of (image_path, bbox, landmark)
-    """
-    items = line.split(" ")
+def get_mean_anchor_size(dataset) -> float:
+    sum_width, sum_height = 0, 0
 
-    # image path
-    image_path = ""
-    bbox = None
-    landmark = None
+    for img, bbox, _ in dataset:
+        if bbox is None:
+            continue
 
-    if len(items) == 1:
-        image_path = items[0]
+        img_width = img.shape[2]
+        img_height = img.shape[1]
 
-    # bbox
-    if len(items) == 5:
-        image_path = items[0]
-        bbox = torch.tensor([float(x) for x in items[1:5]])
+        sum_width += bbox[2] * img_width
+        sum_height += bbox[3] * img_height
 
-    # landmark
-    if len(items) == 15:
-        image_path = items[0]
-        bbox = torch.tensor([float(x) for x in items[1:5]])
-        landmark = torch.tensor([float(x) for x in items[5:15]])
+    total_num = len(dataset)
+    mean_width = sum_width / total_num
+    mean_height = sum_height / total_num
 
-    return image_path, bbox, landmark
-
-
-def prase_anno_line(line: str):
-    """
-    prase a line of annotation under other folder, return a tuple of (image_path, cls_label, bbox, landmark)
-    """
-
-    items = line.split(" ")
-
-    assert len(items) == 15, "annotation line must have 15 parms"
-
-    image_path = items[0]
-    cls_label = int(items[1])
-    bbox = torch.tensor([float(x) for x in items[2:6]])
-    landmark = torch.tensor([float(x) for x in items[6:16]])
-
-    return image_path, cls_label, bbox, landmark
-
-
-def write_anno_file(path: os.PathLike | str, annotations: List[Tuple]) -> None:
-    # string format is a file path
-    if isinstance(path, str):
-        path = os.fspath(path)
-
-    with open(path, "w") as f:
-        for anno in annotations:
-            write_buf = list()
-            for item in anno:
-                if item is None:
-                    continue
-                if isinstance(item, torch.Tensor):
-                    item = item.tolist()
-                    write_buf.extend(item)
-                elif isinstance(item, str):
-                    write_buf.append(item)
-                elif isinstance(item, int):
-                    write_buf.append(str(item))
-                else:
-                    raise TypeError("bad annotations type")
-
-            line = " ".join([str(x) for x in write_buf])
-            f.write(line + "\n")
+    return (mean_width + mean_height) / 2
 
 
 def construct_image_pyramid(
@@ -105,27 +62,79 @@ def construct_image_pyramid(
     return res
 
 
-def gen_train_set_frow_raw(raw_dataset, dir: str, crop_size: Tuple[int, int]):
-    # check dir exist or create it
-    image_path_perfix = "images"
+def generate_train_set_from_raw(
+    raw_dataset, perfix, target_size, anchor_fn: Callable | int, harverster: Callable | None = None
+):
+    image_dir_perfix = "images"
+    image_dir = os.path.join(perfix, image_dir_perfix)
     annotation_basename = "annotations.txt"
+    annotation_path = os.path.join(perfix, annotation_basename)
+    # check and init dir
+    check_and_reset(image_dir)
+    check_and_reset(annotation_path, is_file=True)
+    # properties
+    neg_num = 25
+    iou_threshold_1 = 0.3
+    part_num = 25
+    iou_threshold_2 = 0.7
+    pos_num = 75
 
-    image_dir = os.path.join(dir, image_path_perfix)
-    annotation_path = os.path.join(dir, annotation_basename)
+    logger.info("trying to generate in " + perfix)
 
-    if not os.path.exists(image_dir):
-        os.makedirs(image_dir)
+    counter = 0
+    total_num = len(raw_dataset) * (neg_num + part_num + pos_num)
+    zfill_len = len(str(total_num))
+
+    anchor_size = target_size
+    if isinstance(anchor_fn, Callable):
+        anchor_size = anchor_fn(raw_dataset)
+    else:
+        anchor_size = anchor_fn
+
+    anchor_size = int(anchor_size)
+
+    logger.info("anchor_size: " + str(anchor_size))
 
     annotations = list()
-    counter = 0
-    for image, cls_label, bbox, landmark in harverst_train_set_frow_raw(raw_dataset, crop_size):
-        image_path = str(counter) + ".jpg"
-        counter += 1
 
-        annotations.append((image_path, cls_label, bbox, landmark))
-        pil_imge = transforms.ToPILImage()(image)
+    def process_one(counter, cropped_img, anchor_pos, gt_bbox, gt_landmark, cls_label):
+        reassign_bbox = torch.zeros(4)
+        if bbox is not None:
+            reassign_bbox[0] = gt_bbox[0] - anchor_pos[0]
+            reassign_bbox[1] = gt_bbox[1] - anchor_pos[1]
+            reassign_bbox[2] = gt_bbox[2]
+            reassign_bbox[3] = gt_bbox[3]
+        reassign_landmark = torch.zeros(10)
+        if landmark is not None:
+            reassign_landmark = gt_landmark
 
-        pil_imge.save(os.path.join(image_dir, image_path))
+        image_name = str(counter).zfill(zfill_len) + ".jpg"
 
-    # write annotations file
+        annotations.append((image_name, cls_label, reassign_bbox, reassign_landmark))
+        # save image
+        image_path = os.path.join(image_dir, image_name)
+        resized_img = VF.resize(cropped_img, list(target_size), antialias=True)
+        pil_image = VF.to_pil_image(resized_img)
+        pil_image.save(image_path)
+        logger.info(f"[{counter}/{total_num}] save image: " + image_path)
+
+    for img, bbox, landmark in raw_dataset:
+        if harverster is None:
+            harverster = RandomHarvester(img, bbox, anchor_size)
+        # generate negative samples
+        for _ in range(neg_num):
+            cropped_img, anchor_pos = harverster((0, iou_threshold_1))
+            process_one(counter, cropped_img, anchor_pos, bbox, landmark, 0)
+            counter += 1
+        for _ in range(part_num):
+            cropped_img, anchor_pos = harverster((iou_threshold_1, iou_threshold_2))
+            process_one(counter, cropped_img, anchor_pos, bbox, landmark, 2)
+            counter += 1
+        for _ in range(pos_num):
+            cropped_img, anchor_pos = harverster((iou_threshold_2, 1))
+            process_one(counter, cropped_img, anchor_pos, bbox, landmark, 1)
+            counter += 1
+
+    # save annotations
     write_anno_file(annotation_path, annotations)
+    logger.info("finished")

@@ -1,89 +1,111 @@
 import random
-from typing import Generator, Tuple
+from typing import Generator, Tuple, Union
 
 import torch
 import torchvision.transforms.functional as VF
 
 from mtcnn.utils.evaluation import IoU
+from mtcnn.utils.functional import get_abs_bbox
+from mtcnn.utils.logger import ConsoleLogWriter, DebugLogger
+
+logger = DebugLogger(__name__, ConsoleLogWriter())
 
 
-def RandomHarverster(
-    img: torch.Tensor, anchor_size: int, num: int = -1
-) -> Generator[Tuple[torch.Tensor, Tuple[float, float, float, float]], None, None]:
-    img_width = img.shape[2]
-    img_height = img.shape[1]
-    width_range = img_width - anchor_size
-    height_range = img_height - anchor_size
-    while num > 0 or num == -1:
-        # get random anchor
-        x = random.randint(0, width_range - 1)
-        y = random.randint(0, height_range - 1)
-        cropd_img = VF.crop(img, y, x, anchor_size, anchor_size)
-        yield cropd_img, (
-            x / img_width,
-            y / img_height,
-            anchor_size / img_width,
-            anchor_size / img_height,
+class RandomHarvester:
+    def __init__(self, original: torch.Tensor, gt_bbox: torch.Tensor, anchor_size: int):
+        """
+        Input:
+            original: original image
+            gt_bbox: relative bounding box (x, y, w, h)
+            size: crop size
+        """
+        self.image = original
+        # image_size -> (width, height)
+        self.image_width, self.image_height = (original.shape[2], original.shape[1])
+        self.anchor_size = int(anchor_size)
+        if gt_bbox is not None:
+            self.gt_bbox = gt_bbox
+            self.gt_bbox_width = (gt_bbox[2] * self.image_width).item()
+            self.gt_bbox_height = (gt_bbox[3] * self.image_height).item()
+            # acutually area
+            gt_bbox_area = self.gt_bbox_width * self.gt_bbox_height
+            anchor_area = anchor_size**2
+            self.max_iou = min(gt_bbox_area, anchor_area) / max(gt_bbox_area, anchor_area)
+        else:
+            self.gt_bbox = torch.zeros(4)
+            self.gt_bbox_width = 0
+            self.gt_bbox_height = 0
+            self.max_iou = 0
+
+    def __call__(self, iou_threshold: Tuple[float, float]):
+        """
+        Output:
+            cropped image
+            cropped anchor box
+        """
+
+        # check iou_threshold is valid
+        iou_min, iou_max = iou_threshold
+        iou_min = min(iou_min, iou_max)
+        iou_max = max(iou_min, iou_max)
+
+        if iou_min > self.max_iou:
+            logger.warn(
+                f"now min iou is over than max_iou can get, iou_threshold: ({iou_min},{iou_max}), max_iou: {self.max_iou}, fallback to max_iou"
+            )
+            iou_min = self.max_iou
+        if iou_max > 1:
+            iou_max = 1
+
+        # get anchor position
+        anchor_pos_x, anchor_pos_y = self.get_anchor_pos((iou_min, iou_max))
+        # get cropped image
+        cropped_image = VF.crop(
+            self.image, anchor_pos_y, anchor_pos_x, self.anchor_size, self.anchor_size
         )
 
+        relative_anchor_pos = (anchor_pos_x / self.image_width, anchor_pos_y / self.image_height)
 
-def get_mean_anchor_size(dataset) -> float:
-    sum_width, sum_height = 0, 0
+        return cropped_image, relative_anchor_pos
 
-    for img, bbox, _ in dataset:
-        if bbox is None:
-            continue
+    def get_anchor_pos(self, iou_threshold: Tuple[float, float]) -> Tuple:
+        """
+        method to get anchor position[abs_x, abs_y]
+        """
 
-        img_width = img.shape[2]
-        img_height = img.shape[1]
+        # randomly select an anchor pos
+        abs_gt_bbox = get_abs_bbox((self.image_width, self.image_height), self.gt_bbox)
+        abs_gt_bbox_x1, abs_gt_bbox_y1, abs_gt_bbox_x2, abs_gt_bbox_y2 = abs_gt_bbox
 
-        sum_width += bbox[2] * img_width
-        sum_height += bbox[3] * img_height
+        iou_min, iou_max = iou_threshold
 
-    total_num = len(dataset)
-    mean_width = sum_width / total_num
-    mean_height = sum_height / total_num
+        # loop until get a valid anchor pos
+        while True:
+            # if iou_min is 0, all image is under considered
+            range_x = (0, self.image_width - self.anchor_size)
+            range_y = (0, self.image_height - self.anchor_size)
+            if iou_min > 0:
+                range_x = (
+                    int(max(0, abs_gt_bbox_x1 - self.anchor_size)),
+                    int(
+                        min(self.image_width - self.anchor_size, abs_gt_bbox_x2 + self.anchor_size)
+                    ),
+                )
+                range_y = (
+                    int(max(0, abs_gt_bbox_y1 - self.anchor_size)),
+                    int(
+                        min(self.image_height - self.anchor_size, abs_gt_bbox_y2 + self.anchor_size)
+                    ),
+                )
 
-    return (mean_width + mean_height) / 2
+            # random select anchor pos
+            anchor_pos_x = random.randint(range_x[0], range_x[1] - 1)
+            anchor_pos_y = random.randint(range_y[0], range_y[1] - 1)
 
+            # calculate iou
+            anchor_bbox = (anchor_pos_x, anchor_pos_y, self.anchor_size, self.anchor_size)
+            gt_bbox = (abs_gt_bbox_x1, abs_gt_bbox_y1, self.gt_bbox_width, self.gt_bbox_height)
+            iou = IoU(anchor_bbox, gt_bbox)
 
-def harverst_train_set_frow_raw(raw_dataset, crop_size: Tuple[int, int]):
-    """
-    generate train dataset from raw dataset. Generally, the function just try to crop crop_size images from raw images.
-    some properties will be applied to control this process[todo]
-    """
-    num: int = 25
-    anchor_scale = 0.65
-    anchor_size = int(anchor_scale * get_mean_anchor_size(raw_dataset))
-    iou_threshold_1 = 0.55
-    iou_threshold_2 = 0.75
-
-    for img, bbox, landmark in raw_dataset:
-        # crop image by iou threshold and anchor size
-        harverseter = RandomHarverster(img, anchor_size, num)
-        for cropd_img, (x, y, width, height) in harverseter:
-            # resize cropd_img to crop_size
-            cropd_img = VF.resize(cropd_img, list(crop_size), antialias=True)
-            # reassign bbox
-            reassigned_bbox = torch.zeros(4)
-            if bbox is not None:
-                reassigned_bbox = bbox.clone().detach()
-                reassigned_bbox[0] = reassigned_bbox[0] - x
-                reassigned_bbox[1] = reassigned_bbox[1] - y
-            reassigned_landmark = torch.zeros(10) if landmark is None else landmark.clone().detach()
-
-            # get cls_label by iou
-            cls_label = 0
-
-            if bbox is not None:
-                iou = IoU(bbox, (x, y, width, height))
-                if iou > iou_threshold_2:
-                    cls_label = 1
-                elif iou > iou_threshold_1:
-                    cls_label = 2
-
-            if landmark is None:
-                if cls_label == 1:
-                    cls_label = 2
-
-            yield cropd_img, cls_label, reassigned_bbox, reassigned_landmark
+            if iou_min <= iou < iou_max:
+                return anchor_pos_x, anchor_pos_y

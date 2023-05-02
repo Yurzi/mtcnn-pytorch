@@ -6,16 +6,12 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from .utils.dataset import (
-    construct_image_pyramid,
-    prase_anno_line,
-    prase_raw_anno_line,
-    write_anno_file,
-)
+from .utils.dataset import construct_image_pyramid
 from .utils.functional import default_scale_step, random_picker, split_num
-from .utils.logger import ConsoleLogWriter, Logger
+from .utils.logger import ConsoleLogWriter, DebugLogger
+from .utils.parse import parse_anno_line, parse_raw_anno_line, write_anno_file
 
-logger = Logger(ConsoleLogWriter())
+logger = DebugLogger(__name__, ConsoleLogWriter())
 
 
 class MTCNNRawDataset(Dataset):
@@ -58,7 +54,7 @@ class MTCNNRawDataset(Dataset):
                 if line == "":
                     continue
                 # prase a raw annotation line
-                image_path, bbox, landmark = prase_raw_anno_line(line)
+                image_path, bbox, landmark = parse_raw_anno_line(line)
                 self.annotations.append((image_path, bbox, landmark))
 
     def __len__(self) -> int:
@@ -113,37 +109,35 @@ class MTCNNRawDataset(Dataset):
         # check parms
         train_ratio, eval_ratio, test_ratio = ratio
         assert train_ratio >= 0 and eval_ratio >= 0 and test_ratio >= 0, "ratio must be positive"
-        logger({"INFO": "make dataset for raw"})
+        logger.info("make dataset for raw")
 
         raw_perfix = os.path.join(perfix, MTCNNRawDataset.dirname)
         # read annotations from annotations.txt, line by line
         raw_annotations = list()
-        logger({"INFO": "read annotations from " + raw_perfix + "/annotations.txt"})
+        logger.info("read annotations from" + raw_perfix + "/annotations.txt")
         with open(os.path.join(raw_perfix, "annotations.txt"), "r") as f:
             for line in f.readlines():
                 line = line.strip()
                 if line == "":
                     continue
                 # prase a raw annotation line
-                image_path, bbox, landmark = prase_raw_anno_line(line)
+                image_path, bbox, landmark = parse_raw_anno_line(line)
                 raw_annotations.append((image_path, bbox, landmark))
         total_num = len(raw_annotations)
-        logger({"INFO": "total annotations num: " + str(total_num)})
+        logger.info("total annotations num" + str(total_num))
 
         # normalize ratio and get select num
         train_ratio = train_ratio / sum(ratio)
         eval_ratio = eval_ratio / sum(ratio)
         test_ratio = test_ratio / sum(ratio)
         train_num, eval_num, test_num = split_num(total_num, (train_ratio, eval_ratio, test_ratio))
-        logger(
-            {
-                "INFO": "train num: "
-                + str(train_num)
-                + " eval num:"
-                + str(eval_num)
-                + " test num:"
-                + str(test_num)
-            }
+        logger.info(
+            "train num: "
+            + str(train_num)
+            + " eval num:"
+            + str(eval_num)
+            + " test num:"
+            + str(test_num)
         )
 
         # split raw_annotations into train, eval, test
@@ -155,7 +149,7 @@ class MTCNNRawDataset(Dataset):
         write_anno_file(os.path.join(raw_perfix, "eval.txt"), eval_annotations)
         write_anno_file(os.path.join(raw_perfix, "test.txt"), test_annotations)
 
-        logger({"INFO": "make dataset for raw done"})
+        logger.info("make dataset for raw done")
 
 
 class MTCNNDataset(Dataset):
@@ -203,11 +197,11 @@ class MTCNNDataset(Dataset):
                     continue
                 # prase a annotation line
                 if self.task_type in self.train_type:
-                    image_path, cls_label, bbox, landmark = prase_anno_line(line)
+                    image_path, cls_label, bbox, landmark = parse_anno_line(line)
                     self.annotations.append((image_path, cls_label, bbox, landmark))
                 else:
                     # use raw annotation format
-                    image_path, bbox, landmark = prase_raw_anno_line(line)
+                    image_path, bbox, landmark = parse_raw_anno_line(line)
                     self.annotations.append((image_path, bbox, landmark))
 
     def __len__(self) -> int:

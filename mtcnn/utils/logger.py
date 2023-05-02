@@ -1,3 +1,4 @@
+import inspect
 from typing import Any, Dict, List, Set
 
 
@@ -76,3 +77,50 @@ class ConsoleLogWriter(LogWriter):
 
         # end of one line
         print()
+
+
+class DebugLogger(Logger):
+    def __init__(self, module_name: str, log_writer: LogWriter, level: int = 1) -> None:
+        super(DebugLogger, self).__init__(log_writer)
+        self.level = level
+        self.module_name = module_name
+
+    def debug(self, msg: str):
+        if self.level <= 0:
+            # self(f"[{self.module_name}:{lineno}]", {"DEBUG": msg})
+            pass
+
+    def info(self, msg: str):
+        if self.level <= 1:
+            lineno = self.__get_lineno()
+            self(f"[{self.module_name}:{lineno}]", {"INFO": msg})
+
+    def warn(self, msg: str):
+        if self.level <= 2:
+            lineno = self.__get_lineno()
+            self(f"[{self.module_name}:{lineno}]", {"WARN": msg})
+
+    def error(self, msg: str):
+        if self.level <= 3:
+            lineno = self.__get_lineno()
+            self(f"[{self.module_name}:{lineno}]", {"ERROR": msg})
+
+    def fatal(self, msg: str):
+        if self.level <= 4:
+            lineno = self.__get_lineno()
+            self(f"[{self.module_name}:{lineno}]", {"FATAL": msg})
+
+    def __get_lineno(self) -> int:
+        lineno = -1
+        c_frame = inspect.currentframe()
+
+        # check frame
+        if c_frame is None:
+            return lineno
+        outer_frame = c_frame.f_back
+        if outer_frame is None:
+            return lineno
+        outer_frame = outer_frame.f_back
+        if outer_frame is None:
+            return lineno
+        return outer_frame.f_lineno

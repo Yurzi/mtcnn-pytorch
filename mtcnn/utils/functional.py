@@ -32,6 +32,16 @@ def split_num(total_num, ratio: Tuple) -> Tuple:
     return tuple(split_nums)
 
 
+def get_abs_bbox(image_size: Tuple[float, float], relative_bbox) -> Tuple:
+    """
+    get absolute bounding box [x1, y1, x2, y2]
+    image_size -> (width, height)
+    """
+    width, height = image_size
+    x, y, w, h = relative_bbox
+    return (x * width, y * height, (x + w) * width, (y + h) * height)
+
+
 def default_scale_step(stop: float, num: int, start: float = 1):
     """
     generate scale [start, stop]

@@ -1,5 +1,6 @@
 from mtcnn.datasets import MTCNNRawDataset
-from mtcnn.utils.dataset import gen_train_set_frow_raw
+from mtcnn.utils.dataset import generate_train_set_from_raw, get_mean_anchor_size
+from mtcnn.utils.harverster import RandomHarvester
 
 
 def test_raw_dataset_split():
@@ -8,7 +9,7 @@ def test_raw_dataset_split():
 
 def test_train_set_gen():
     raw_dataset = MTCNNRawDataset("dataset")
-    gen_train_set_frow_raw(raw_dataset, "dataset/pnet", (12, 12))
+    generate_train_set_from_raw(raw_dataset, "dataset/pnet", (12, 12), get_mean_anchor_size)
 
 
 if __name__ == "__main__":
