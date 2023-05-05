@@ -9,10 +9,9 @@ packages = [{include = "mtcnn"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-wandb = "^0.15.0"
+wandb = "^0.15.1"
 easydict = "^1.10"
 tqdm = "^4.65.0"
-urllib3 = "^1.26.15"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^5.12.0"
@@ -21,9 +20,6 @@ black = "^23.3.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.isort]
-profile = "black"
 
 [tool.black]
 line-length = 100
