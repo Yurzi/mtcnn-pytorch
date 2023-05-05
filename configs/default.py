@@ -2,6 +2,8 @@ from easydict import EasyDict as edict
 
 config = edict()
 
+config.net_name = None
+
 # path
 config.output = "work_dirs"
 config.dataset_dir = "dataset"
@@ -14,14 +16,42 @@ config.part_num = 25
 config.iou_threshold_2 = 0.7
 config.positive_num = 75
 
-config.img_size_pnet = (12, 12)
-config.img_size_rnet = (24, 24)
-config.img_size_onet = (48, 48)
-
+config.img_size = (12, 12)
 
 # train
 # this property also control the dataset generation
 config.cascade_train = True
+
+config.fp16 = False
+config.cuda = True
+
+# worker num of dataloader
+config.num_workers = 4
+config.batch_size = 64
+config.shuffle = True
+
+config.optimizer_type="adam"    # "adam" | "sgd"
+config.optimizer_params = {
+    'lr': 1e-3,
+    'betas': (0.9, 0.999),
+    'eps': 1e-8,
+    'weight_decay': 0
+}
+config.scheduler_type="steplr"    # "steplr" | "cosine"(unimplement)
+config.scheduler_params = {
+    'step_size': 100,
+    'gamma' : 0.5
+}
+
+config.epoch = 20
+config.save_epoch = 1
+
+config.task_weight = (1, 0.5, 0.5)
+config.ohem_rate = 0.7
+
+# used for resume, test, eval and inference
+config.weight = "last.pt"
+config.save_all = True
 
 
 # log

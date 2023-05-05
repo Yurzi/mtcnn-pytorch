@@ -1,5 +1,6 @@
 # ignore custom dataset files
 dataset/
+work_dirs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

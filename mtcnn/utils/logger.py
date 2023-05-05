@@ -38,8 +38,10 @@ class LogWriter:
 
 
 class Logger:
-    def __init__(self, log_writer: LogWriter) -> None:
+    def __init__(self, module_name:str, log_writer: LogWriter, level:int = 1) -> None:
         self.writer = log_writer
+        self.level = level
+        self.module_name = module_name
 
     def log(self, input: list[LogItem]) -> None:
         self.writer(input)
@@ -60,6 +62,36 @@ class Logger:
                 raise TypeError(f"unsupported type {type(item)}")
 
         self.log(items)
+    def debug(self, msg: str):
+        print("NotImplementedError: This is a abstract method\n", msg)
+
+    def info(self, msg: str):
+        print("NotImplementedError: This is a abstract method\n", msg)
+
+    def warn(self, msg: str):
+        print("NotImplementedError: This is a abstract method\n", msg)
+
+    def error(self, msg: str):
+        print("NotImplementedError: This is a abstract method\n", msg)
+
+    def fatal(self, msg: str):
+        print("NotImplementedError: This is a abstract method\n", msg)
+
+
+    def __get_lineno(self) -> int:
+        lineno = -1
+        c_frame = inspect.currentframe()
+
+        # check frame
+        if c_frame is None:
+            return lineno
+        outer_frame = c_frame.f_back
+        if outer_frame is None:
+            return lineno
+        outer_frame = outer_frame.f_back
+        if outer_frame is None:
+            return lineno
+        return outer_frame.f_lineno
 
 
 class ConsoleLogWriter(LogWriter):
@@ -81,14 +113,12 @@ class ConsoleLogWriter(LogWriter):
 
 class DebugLogger(Logger):
     def __init__(self, module_name: str, log_writer: LogWriter, level: int = 1) -> None:
-        super(DebugLogger, self).__init__(log_writer)
-        self.level = level
-        self.module_name = module_name
+        super(DebugLogger, self).__init__(module_name, log_writer, level)
 
     def debug(self, msg: str):
         if self.level <= 0:
-            # self(f"[{self.module_name}:{lineno}]", {"DEBUG": msg})
-            pass
+            lineno = self.__get_lineno()
+            self(f"[{self.module_name}:{lineno}]", {"DEBUG": msg})
 
     def info(self, msg: str):
         if self.level <= 1:
@@ -110,17 +140,3 @@ class DebugLogger(Logger):
             lineno = self.__get_lineno()
             self(f"[{self.module_name}:{lineno}]", {"FATAL": msg})
 
-    def __get_lineno(self) -> int:
-        lineno = -1
-        c_frame = inspect.currentframe()
-
-        # check frame
-        if c_frame is None:
-            return lineno
-        outer_frame = c_frame.f_back
-        if outer_frame is None:
-            return lineno
-        outer_frame = outer_frame.f_back
-        if outer_frame is None:
-            return lineno
-        return outer_frame.f_lineno

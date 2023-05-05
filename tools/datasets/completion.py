@@ -31,6 +31,8 @@ def main(args):
     else:
         if cfg.dataset_dir is None or len(cfg.dataset_dir) == 0:
             raise ValueError("dataset_dir is not specified")
+        if cfg.net_name is None or len(cfg.net_name) == 0:
+            raise ValueError("net_name is not specified")
 
     # generate dataset
     # check if raw dataset is complated
@@ -41,25 +43,12 @@ def main(args):
 
     raw_dataset = MTCNNRawDataset(cfg.dataset_dir)
     # generate train set
-    # for pnet
+    # for one net
     logger.info("process pnet dataset...")
-    pnet_perfix = os.path.join(cfg.dataset_dir, "pnet")
+    net_perfix = os.path.join(cfg.dataset_dir, cfg.net_name)
     generate_train_set_from_raw(
-        raw_dataset, pnet_perfix, cfg.img_size_pnet, get_mean_anchor_size, config=cfg
+        raw_dataset, net_perfix, cfg.img_size, get_mean_anchor_size, config=cfg
     )
-    if not cfg.cascade_train:
-        # for rnet
-        logger.info("process rnet dataset...")
-        rnet_perfix = os.path.join(cfg.dataset_dir, "rnet")
-        generate_train_set_from_raw(
-            raw_dataset, rnet_perfix, cfg.img_size_rnet, get_mean_anchor_size, config=cfg
-        )
-        # for onet
-        logger.info("process onet dataset...")
-        onet_perfix = os.path.join(cfg.dataset_dir, "onet")
-        generate_train_set_from_raw(
-            raw_dataset, onet_perfix, cfg.img_size_onet, get_mean_anchor_size, config=cfg
-        )
 
 
 if __name__ == "__main__":

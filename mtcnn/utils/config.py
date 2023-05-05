@@ -12,4 +12,7 @@ def get_config(config_file):
     cfg.update(job_cfg)
     if cfg.output is None:
         cfg.output = os.path.join("work_dirs", temp_module_name)
+
+    if not os.path.exists(cfg.output):
+        os.makedirs(cfg.output, exist_ok=True)
     return cfg

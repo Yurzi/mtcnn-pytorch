@@ -39,7 +39,7 @@ def parse_anno_line(line: str):
 
     items = line.split(" ")
 
-    assert len(items) == 15, "annotation line must have 15 parms"
+    assert len(items) == 16, "annotation line must have 15 parms"
 
     image_path = items[0]
     cls_label = int(items[1])

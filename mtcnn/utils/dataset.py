@@ -6,10 +6,10 @@ import torch
 import torchvision.transforms.functional as VF
 from torchvision import transforms
 
-from mtcnn.utils.filesystem import check_and_reset
-from mtcnn.utils.harverster import RandomHarvester
-from mtcnn.utils.logger import ConsoleLogWriter, DebugLogger
-from mtcnn.utils.parse import write_anno_file
+from .filesystem import check_and_reset
+from .harverster import RandomHarvester
+from .logger import ConsoleLogWriter, DebugLogger
+from .parser import write_anno_file
 
 logger = DebugLogger(__name__, ConsoleLogWriter())
 

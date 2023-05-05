@@ -6,10 +6,10 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from .utils.dataset import construct_image_pyramid
-from .utils.functional import default_scale_step, random_picker, split_num
-from .utils.logger import ConsoleLogWriter, DebugLogger
-from .utils.parse import parse_anno_line, parse_raw_anno_line, write_anno_file
+from utils.dataset import construct_image_pyramid
+from utils.functional import default_scale_step, random_picker, split_num
+from utils.logger import ConsoleLogWriter, DebugLogger
+from utils.parser import parse_anno_line, parse_raw_anno_line, write_anno_file
 
 logger = DebugLogger(__name__, ConsoleLogWriter())
 
@@ -82,7 +82,7 @@ class MTCNNRawDataset(Dataset):
             return img.convert("RGB")
 
     def accimage_loader(self, path: str) -> Any:
-        import accimage
+        import accimage #type: ignore
 
         try:
             return accimage.Image(path)
@@ -215,7 +215,7 @@ class MTCNNDataset(Dataset):
         if self.task_type in self.train_type:
             image_path, cls_label, bbox, landmark = self.annotations[idx]
             # load img from image_path
-            img = self.loader(image_path)
+            img = self.loader(os.path.join(self.image_dir, image_path))
             # do image transform
             if self.transform is not None:
                 img = self.transform(img)
@@ -239,7 +239,7 @@ class MTCNNDataset(Dataset):
             # if the dataset  is eval or test type, perferom like raw dataset, but we need image pyramid
             image_path, bbox, landmark = self.annotations[idx]
             # load img from image_path
-            img = self.loader(image_path)
+            img = self.loader(os.path.join(self.image_dir, image_path))
             # do image transform
             if self.transform is not None:
                 img = self.transform(img)
@@ -256,7 +256,7 @@ class MTCNNDataset(Dataset):
             return img.convert("RGB")
 
     def accimage_loader(self, path: str) -> Any:
-        import accimage
+        import accimage #type: ignore
 
         try:
             return accimage.Image(path)
