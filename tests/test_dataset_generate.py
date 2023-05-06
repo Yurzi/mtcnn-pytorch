@@ -9,7 +9,7 @@ def test_raw_dataset_split():
 
 def test_train_set_gen():
     raw_dataset = MTCNNRawDataset("dataset")
-    generate_train_set_from_raw(raw_dataset, "dataset/pnet", (12, 12), get_mean_anchor_size)
+    generate_train_set_from_raw(raw_dataset, "dataset/pnet","train", (12, 12), get_mean_anchor_size)
 
 
 if __name__ == "__main__":

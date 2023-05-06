@@ -77,21 +77,24 @@ class Logger:
     def fatal(self, msg: str):
         print("NotImplementedError: This is a abstract method\n", msg)
 
-
-    def __get_lineno(self) -> int:
+    @staticmethod
+    def get_lineno() -> int:
         lineno = -1
         c_frame = inspect.currentframe()
 
         # check frame
         if c_frame is None:
             return lineno
+        lineno = c_frame.f_lineno 
         outer_frame = c_frame.f_back
         if outer_frame is None:
             return lineno
+        lineno = outer_frame.f_lineno
         outer_frame = outer_frame.f_back
         if outer_frame is None:
             return lineno
-        return outer_frame.f_lineno
+        lineno = outer_frame.f_lineno
+        return lineno
 
 
 class ConsoleLogWriter(LogWriter):
@@ -117,26 +120,26 @@ class DebugLogger(Logger):
 
     def debug(self, msg: str):
         if self.level <= 0:
-            lineno = self.__get_lineno()
+            lineno = self.get_lineno()
             self(f"[{self.module_name}:{lineno}]", {"DEBUG": msg})
 
     def info(self, msg: str):
         if self.level <= 1:
-            lineno = self.__get_lineno()
+            lineno = self.get_lineno()
             self(f"[{self.module_name}:{lineno}]", {"INFO": msg})
 
     def warn(self, msg: str):
         if self.level <= 2:
-            lineno = self.__get_lineno()
+            lineno = self.get_lineno()
             self(f"[{self.module_name}:{lineno}]", {"WARN": msg})
 
     def error(self, msg: str):
         if self.level <= 3:
-            lineno = self.__get_lineno()
+            lineno = self.get_lineno()
             self(f"[{self.module_name}:{lineno}]", {"ERROR": msg})
 
     def fatal(self, msg: str):
         if self.level <= 4:
-            lineno = self.__get_lineno()
+            lineno = self.get_lineno()
             self(f"[{self.module_name}:{lineno}]", {"FATAL": msg})
 

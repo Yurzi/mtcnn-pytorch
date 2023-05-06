@@ -56,27 +56,27 @@ You can configure the partition ratio by using a configuration file(described be
 
 ```shell
 dataset
-    ├── eval                (can be generated)
-    │   ├── annotations.txt
-    │   └── images
-    ├── onet                (can be generated)
-    │   ├── annotations.txt
-    │   └── images
-    ├── pnet                (can be generated)
-    │   ├── annotations.txt
-    │   └── images
-    ├── raw
-    │   ├── annotations.txt
-    │   ├── eval.txt        (can be generated)
-    │   ├── images
-    │   ├── test.txt        (can be generated)
-    │   └── train.txt       (can be generated)
-    ├── rnet                (can be generated)
-    │   ├── annotations.txt
-    │   └── images
-    └── test                (can be generated)
-        ├── annotations.txt
-        └── images
+├── onet
+│   ├── eval.txt
+│   ├── images
+│   ├── test.txt
+│   └── train.txt
+├── pnet
+│   ├── eval.txt
+│   ├── images
+│   ├── test.txt
+│   └── train.txt
+├── raw
+│   ├── annotations.txt     (must have)
+│   ├── eval.txt
+│   ├── images              (must have)
+│   ├── test.txt
+│   └── train.txt
+└── rnet
+    ├── eval.txt
+    ├── images
+    ├── test.txt
+    └── train.txt
 ```
 ### Generate From Raw Manually
 

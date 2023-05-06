@@ -7,13 +7,14 @@ config.net_name = "pnet"
 # path
 config.output = "work_dirs"
 config.dataset_dir = "dataset"
+config.weight_dir = "weights"
 
 # dataset
-config.dataset_split = (0.8, 0.1, 0.1)
+config.dataset_split = (0.8, 0.1, 0.1) # train test eval
+
+config.iou_threshold = (0.3, 0.7)
 config.negative_num = 25
-config.iou_threshold_1 = 0.3
 config.part_num = 25
-config.iou_threshold_2 = 0.7
 config.positive_num = 75
 
 config.img_size = (12, 12)
@@ -53,6 +54,9 @@ config.ohem_rate = 0.7
 config.weight = "last.pt"
 config.save_all = True
 
+# eval and test
+config.acc_iou_threshold = 0.7
+config.acc_ldmk_threshold = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
 
 # log
 config.use_wandb = False

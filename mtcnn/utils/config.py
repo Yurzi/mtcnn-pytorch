@@ -1,6 +1,8 @@
 import importlib
 import os
 
+from mtcnn.utils.filesystem import check_and_reset
+
 
 def get_config(config_file):
     temp_config_name = os.path.basename(config_file)
@@ -13,6 +15,5 @@ def get_config(config_file):
     if cfg.output is None:
         cfg.output = os.path.join("work_dirs", temp_module_name)
 
-    if not os.path.exists(cfg.output):
-        os.makedirs(cfg.output, exist_ok=True)
+    check_and_reset(cfg.output)
     return cfg

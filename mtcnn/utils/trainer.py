@@ -35,11 +35,15 @@ class Trainer():
         self.epoch = 0
 
         self.max_epoch = -1
+        # for train
         self.total_loss = 0
         self.total_accuracy = 0
         self.total_cls_accuracy = 0 
         self.total_bbox_accuracy = 0
         self.total_ldmk_accuracy = 0
+        # for test
+        self.test_loader = None
+
         # a flag to check if trainer is all setup
         self.is_setup = False
 
@@ -53,6 +57,7 @@ class Trainer():
             return
 
         # setup a pragress bar
+        self.logger.info("Training...")
         epoch_step = len(self.train_loader)
         pbar = tqdm(total=epoch_step,desc=f'Epoch {self.epoch + 1}/{self.max_epoch}',mininterval=0.3)
 
@@ -92,12 +97,107 @@ class Trainer():
             self.lr_scheduler.step() #type: ignore
 
             # update progress bar
-            pbar.set_postfix(OrderedDict({'loss':loss.item(), 'avg_loss': self.total_loss / self.step, 'lr': last_lr, 'avg_cls_acc': self.total_cls_accuracy / self.step, 'avg_bbox_acc': self.total_bbox_accuracy / self.step}))
+            avg_loss = self.total_loss / self.step
+            postfix_dict = OrderedDict({'loss': loss.item(),'avg_loss': avg_loss,'lr': last_lr})
+            if self.acc_fn is not None:
+                avg_acc = self.total_accuracy / self.step
+                avg_cls_acc = self.total_cls_accuracy / self.step
+                avg_bbox_acc = self.total_bbox_accuracy / self.step
+                avg_ldmk_acc = self.total_ldmk_accuracy / self.step
+                postfix_dict = OrderedDict({
+                    'loss':loss.item(),
+                    'avg_loss': avg_loss,
+                    'lr': last_lr,
+                    'avg_acc': avg_acc,
+                    'avg_cls_acc': avg_cls_acc,
+                    'avg_bbox_acc': avg_bbox_acc,
+                    'avg_ldmk_acc': avg_ldmk_acc
+                })
+            pbar.set_postfix(postfix_dict)
             pbar.update(1)
+
 
         # close progress bar
         self.epoch += 1
         pbar.close()
+        print("\n")
+
+    def test(self) -> None:
+        """
+        test model
+        """
+        if self.test_loader is None:
+            self.logger.warn("test_loader is not defined, skip test")
+            return
+        if not self.is_setup:
+            self.logger.error("trainer must be setup, call step first")
+            return
+        if self.acc_fn is None:
+            self.logger.warn("acc_fn is not defined, accuracy will not be caculated")
+
+        self.logger.info("Testing...")
+        epoch_step = len(self.test_loader)
+        pbar = tqdm(total=epoch_step,desc=f'Test {self.epoch}/{self.max_epoch}',mininterval=0.3)
+        test_step = 0
+        total_test_loss = 0
+        total_test_accuracy = 0
+        total_test_cls_accuracy = 0
+        total_test_bbox_accuracy = 0
+        total_test_ldmk_accuracy = 0
+        # shift model to eval mode
+        self.model.eval()
+
+        with torch.no_grad():
+            for _, (image, target, type_indicator) in enumerate(self.test_loader):
+                test_step += 1
+                # shift data to device
+                image = image.to(self.device)
+                for item in target:
+                    item.to(self.device)
+                for item in type_indicator:
+                    item.to(self.device)
+
+                # forward
+                output = self.model(image)
+                loss = self.loss_fn(output, target, type_indicator)
+
+                total_test_loss += loss.item()
+                if self.acc_fn is not None:
+                    general_acc, cls_acc, bbox_acc, ldmk_acc = self.acc_fn(output, target, type_indicator)
+                    total_test_accuracy += general_acc
+                    total_test_cls_accuracy += cls_acc
+                    total_test_bbox_accuracy += bbox_acc
+                    total_test_ldmk_accuracy += ldmk_acc
+                else:
+                    general_acc, cls_acc, bbox_acc, ldmk_acc = -1, -1, -1, -1
+                # update progress bar
+                avg_loss = total_test_loss / test_step
+                postfix_dict = OrderedDict({'loss': loss.item(),'avg_loss': avg_loss})
+                if self.acc_fn is not None:
+                    avg_acc = total_test_accuracy / test_step
+                    avg_cls_acc = total_test_cls_accuracy / test_step
+                    avg_bbox_acc = total_test_bbox_accuracy / test_step
+                    avg_ldmk_acc = total_test_ldmk_accuracy / test_step
+                    postfix_dict = OrderedDict({
+                        'loss':loss.item(),
+                        'avg_loss': avg_loss,
+                        'avg_acc': avg_acc,
+                        'avg_cls_acc': avg_cls_acc,
+                        'avg_bbox_acc': avg_bbox_acc,
+                        'avg_ldmk_acc': avg_ldmk_acc
+                    })
+                pbar.set_postfix(postfix_dict)
+                pbar.update(1)
+        # test end
+        pbar.close() 
+
+        avg_loss = total_test_loss / test_step
+        avg_acc = total_test_accuracy / test_step
+        avg_cls_acc = total_test_cls_accuracy / test_step
+        avg_bbox_acc = total_test_bbox_accuracy / test_step
+        avg_ldmk_acc = total_test_ldmk_accuracy / test_step
+        self.logger.info(f"Test {self.epoch}/{self.max_epoch} loss: {avg_loss} acc: {avg_acc} cls_acc: {avg_cls_acc} bbox_acc: {avg_bbox_acc} ldmk_acc: {avg_ldmk_acc}\n")
+
 
 
     def setup(self):
@@ -154,6 +254,12 @@ class Trainer():
             self.acc_fn = acc_fn
         return self
 
+    def set_test_dataloader(self, test_loader: DataLoader):
+        if test_loader is not None:
+            self.test_loader = test_loader
+
+        return self
+
     def load_state(self, path: str):
         # load state(weight) from path
         checkpoint = torch.load(path)
@@ -171,7 +277,8 @@ class Trainer():
         return self
             
     def save_state(self, dir: str, net_name: str, is_all:bool = False):
-        
+        if not os.path.exists(dir):
+            os.makedirs(dir, exist_ok=True)
 
         # sava_state(weight) to path, if is_all will save lr_scheduler and other things
         checkpoint = {}

@@ -27,7 +27,6 @@ def main(args):
     cfg = get_config(args.config)
     if args.path is not None:
         cfg.dataset_dir = args.path
-
     else:
         if cfg.dataset_dir is None or len(cfg.dataset_dir) == 0:
             raise ValueError("dataset_dir is not specified")
@@ -41,19 +40,31 @@ def main(args):
         logger.info("process raw dataset...")
         MTCNNRawDataset.make_dataset(cfg.dataset_dir, cfg.dataset_split)
 
-    raw_dataset = MTCNNRawDataset(cfg.dataset_dir)
+    # raw_dataset = MTCNNRawDataset(cfg.dataset_dir)
+    # anchor_size = int(get_mean_anchor_size(raw_dataset))
+
+    raw_train_dataset = MTCNNRawDataset(cfg.dataset_dir, dataset_type="train")
+    raw_eval_dataset = MTCNNRawDataset(cfg.dataset_dir, dataset_type="eval")
+    raw_test_dataset = MTCNNRawDataset(cfg.dataset_dir, dataset_type="test")
     # generate train set
     # for one net
-    logger.info("process pnet dataset...")
+    logger.info(f"process {cfg.net_name} dataset...")
+    logger.info(f"[img_size]: {cfg.img_size}")
     net_perfix = os.path.join(cfg.dataset_dir, cfg.net_name)
     generate_train_set_from_raw(
-        raw_dataset, net_perfix, cfg.img_size, get_mean_anchor_size, config=cfg
+        raw_train_dataset, net_perfix, "train" ,cfg.img_size, get_mean_anchor_size, config=cfg, reset = True
+    )
+    generate_train_set_from_raw(
+        raw_eval_dataset, net_perfix, "eval" ,cfg.img_size, get_mean_anchor_size, config=cfg
+    )
+    generate_train_set_from_raw(
+        raw_test_dataset, net_perfix, "test" ,cfg.img_size, get_mean_anchor_size, config=cfg
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="a tool to generate dataset for mtcnn from raw")
-    parser.add_argument("--config", type=str, help="config file name under configs folder")
+    parser.add_argument("--config", required=True, type=str, help="config file name under configs folder")
     parser.add_argument("--path", type=str, help="path to dataset dir")
     args = parser.parse_args()
     if args.config is None:

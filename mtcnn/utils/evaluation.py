@@ -87,6 +87,8 @@ def get_landmark_accuarcy(pred:torch.Tensor, target:torch.Tensor, type_indicator
     assert pred.shape[0] == target.shape[0] == type_indicator.shape[0], "pred and target must have same number of elements"
     assert pred.shape[1] == 10, "pred must have 10 elements in the second dimension"
     assert target.shape[1] == 10, "target must have 10 elements in the second dimension"
+    if not isinstance(threshold, torch.Tensor):
+        threshold = torch.Tensor(threshold)
 
     correct = 0;
     total = pred.shape[0]
