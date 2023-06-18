@@ -83,9 +83,9 @@ dataset
 You can use the tool script to complete the dataset manually.
 
 The script will manage to finish successfully with fallback mechanism
-- if raw folder don't has partition the script will fallback to use configs/config_name.py's settings
-- if --config is not set the script will fallback to default.py under configs folder
-- if --path is not seth the script will fallback to config.py 's settings
+- if raw folder don't has partition, the script will fallback to use configs/config_name.py's settings
+- if --config is not set, the script will fallback to default.py under configs folder
+- if --path is not set, the script will fallback to config.py 's settings
 - if default.py is not existed, a exception will be raised
 
 ```shell
@@ -143,7 +143,7 @@ If your dataset has been perpared, you can use train.py to train all three net  
 ```shell
 python mtcnn/train.py --config config_name [--resume]
 ```
-Or, you can use tran_(p|r|o)net.py to train echo net seprately.
+Or, you can use tran_(p|r|o)net.py to train each net seprately.
 
 ```shell
 python mtcnn/train_(p|r|o)net.py --config config_name [--resume]

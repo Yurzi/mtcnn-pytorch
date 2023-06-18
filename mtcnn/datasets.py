@@ -8,10 +8,10 @@ from torchvision import transforms
 
 from mtcnn.utils.dataset import construct_image_pyramid
 from mtcnn.utils.functional import default_scale_step, random_picker, split_num
-from mtcnn.utils.logger import ConsoleLogWriter, DebugLogger
+from mtcnn.utils.logger import DebugLogger, TqdmLogWriter
 from mtcnn.utils.parser import parse_anno_line, parse_raw_anno_line, write_anno_file
 
-logger = DebugLogger(__name__, ConsoleLogWriter())
+logger = DebugLogger(__name__, TqdmLogWriter())
 
 
 class MTCNNRawDataset(Dataset):
@@ -124,7 +124,7 @@ class MTCNNRawDataset(Dataset):
                 image_path, bbox, landmark = parse_raw_anno_line(line)
                 raw_annotations.append((image_path, bbox, landmark))
         total_num = len(raw_annotations)
-        logger.info("total annotations num" + str(total_num))
+        logger.info("total annotations num: " + str(total_num))
 
         # normalize ratio and get select num
         train_ratio = train_ratio / sum(ratio)

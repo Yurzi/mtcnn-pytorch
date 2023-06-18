@@ -71,7 +71,7 @@ def get_bbox_accuarcy(pred:torch.Tensor, target:torch.Tensor, type_indicator:tor
         pred_bbox = pred[i]
         target_bbox = target[i]
         iou = IoU(pred_bbox, target_bbox)
-        if iou > iou_threshold and type_indicator[i] == 1:
+        if iou >= iou_threshold and type_indicator[i] == 1:
             correct += 1
 
     return correct / total
@@ -112,13 +112,20 @@ class MTCNNMultiTaskAcc():
         bbox_weight: weight of bounding box regression loss
         landmark_weight: weight of landmark regression loss
         iou_threshold[float]: threshold of bbox regression
-        ldmk_threshold[Tensor[10]]: threshold of landmark
+        ldmk_threshold[Tensor[10]]: threshold of landmark, a Tensor
         """
         self.cls_weight = cls_weight
         self.bbox_weight = bbox_weight
         self.landmark_weight = landmark_weight
         self.iou_threshold = iou_threshold
-        self.ldmk_threshold = ldmk_threshold
+        self.ldmk_threshold = torch.Tensor(ldmk_threshold)
+        self.device = torch.device("cpu")
+
+    def set_device(self, device: torch.device):
+        self.device = device
+        self.ldmk_threshold = self.ldmk_threshold.to(device)
+
+
 
     def __call__(self, pred, target, type_indicator):
         """
@@ -139,5 +146,3 @@ class MTCNNMultiTaskAcc():
         general_acc = general_acc / (self.cls_weight + self.bbox_weight + self.landmark_weight)
 
         return general_acc, cls_acc, bbox_acc, landmark_acc
-
-

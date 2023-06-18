@@ -41,7 +41,7 @@ config.optimizer_params = {
 config.scheduler_type="steplr"    # "steplr" | "cosine"(unimplement)
 config.scheduler_params = {
     'step_size': 100,
-    'gamma' : 0.5
+    'gamma' : 1
 }
 
 config.epoch = 20

@@ -40,8 +40,8 @@ def main(args):
         logger.info("process raw dataset...")
         MTCNNRawDataset.make_dataset(cfg.dataset_dir, cfg.dataset_split)
 
-    # raw_dataset = MTCNNRawDataset(cfg.dataset_dir)
-    # anchor_size = int(get_mean_anchor_size(raw_dataset))
+    raw_dataset = MTCNNRawDataset(cfg.dataset_dir)
+    anchor_size = int(1.15 * get_mean_anchor_size(raw_dataset))
 
     raw_train_dataset = MTCNNRawDataset(cfg.dataset_dir, dataset_type="train")
     raw_eval_dataset = MTCNNRawDataset(cfg.dataset_dir, dataset_type="eval")
@@ -52,13 +52,13 @@ def main(args):
     logger.info(f"[img_size]: {cfg.img_size}")
     net_perfix = os.path.join(cfg.dataset_dir, cfg.net_name)
     generate_train_set_from_raw(
-        raw_train_dataset, net_perfix, "train" ,cfg.img_size, get_mean_anchor_size, config=cfg, reset = True
+        raw_train_dataset, net_perfix, "train" ,cfg.img_size, anchor_size, config=cfg, reset = True
     )
     generate_train_set_from_raw(
-        raw_eval_dataset, net_perfix, "eval" ,cfg.img_size, get_mean_anchor_size, config=cfg
+        raw_eval_dataset, net_perfix, "eval" ,cfg.img_size, anchor_size, config=cfg
     )
     generate_train_set_from_raw(
-        raw_test_dataset, net_perfix, "test" ,cfg.img_size, get_mean_anchor_size, config=cfg
+        raw_test_dataset, net_perfix, "test" ,cfg.img_size, anchor_size, config=cfg
     )
 
 

@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import LRScheduler, StepLR
 from torch.optim import Optimizer
 from tqdm import tqdm
 
-from .logger import ConsoleLogWriter, DebugLogger, Logger
+from .logger import TqdmLogWriter, DebugLogger, Logger
 from typing import Callable
 
 def get_lr(optimizer: Optimizer):
@@ -29,7 +29,7 @@ class Trainer():
         self.loss_fn = loss_fn
         self.acc_fn = None
 
-        self.logger = logger if logger is not None else DebugLogger(__name__, ConsoleLogWriter())
+        self.logger = logger if logger is not None else DebugLogger(__name__, TqdmLogWriter())
 
         self.step = 0
         self.epoch = 0
@@ -67,18 +67,20 @@ class Trainer():
             self.step += 1
             # shift data to device
             image = image.to(self.device)
+            dispatced_target = list()
+            dispatced_type_indicator = list()
             for item in target:
-                item.to(self.device)
+                dispatced_target.append(item.to(self.device))
             for item in type_indicator:
-                item.to(self.device)
+                dispatced_type_indicator.append(item.to(self.device))
 
             # forward
             output = self.model(image)
-            loss = self.loss_fn(output, target, type_indicator)
+            loss = self.loss_fn(output, dispatced_target, dispatced_type_indicator)
 
             self.total_loss += loss.item()
             if self.acc_fn is not None:
-                general_acc, cls_acc, bbox_acc, ldmk_acc = self.acc_fn(output, target, type_indicator)
+                general_acc, cls_acc, bbox_acc, ldmk_acc = self.acc_fn(output, dispatced_target, dispatced_type_indicator)
                 self.total_accuracy += general_acc
                 self.total_cls_accuracy += cls_acc
                 self.total_bbox_accuracy += bbox_acc
@@ -109,9 +111,9 @@ class Trainer():
                     'avg_loss': avg_loss,
                     'lr': last_lr,
                     'avg_acc': avg_acc,
-                    'avg_cls_acc': avg_cls_acc,
-                    'avg_bbox_acc': avg_bbox_acc,
-                    'avg_ldmk_acc': avg_ldmk_acc
+                    #'avg_cls_acc': avg_cls_acc,
+                    #'avg_bbox_acc': avg_bbox_acc,
+                    #'avg_ldmk_acc': avg_ldmk_acc
                 })
             pbar.set_postfix(postfix_dict)
             pbar.update(1)
@@ -120,7 +122,6 @@ class Trainer():
         # close progress bar
         self.epoch += 1
         pbar.close()
-        print("\n")
 
     def test(self) -> None:
         """
@@ -152,18 +153,21 @@ class Trainer():
                 test_step += 1
                 # shift data to device
                 image = image.to(self.device)
-                for item in target:
-                    item.to(self.device)
-                for item in type_indicator:
-                    item.to(self.device)
 
+                dispatced_target = list()
+                dispatced_type_indicator = list()
+                for item in target:
+                    dispatced_target.append(item.to(self.device))
+                for item in type_indicator:
+                    dispatced_type_indicator.append(item.to(self.device))
+                
                 # forward
                 output = self.model(image)
-                loss = self.loss_fn(output, target, type_indicator)
+                loss = self.loss_fn(output, dispatced_target, dispatced_type_indicator)
 
                 total_test_loss += loss.item()
                 if self.acc_fn is not None:
-                    general_acc, cls_acc, bbox_acc, ldmk_acc = self.acc_fn(output, target, type_indicator)
+                    general_acc, cls_acc, bbox_acc, ldmk_acc = self.acc_fn(output, dispatced_target, dispatced_type_indicator)
                     total_test_accuracy += general_acc
                     total_test_cls_accuracy += cls_acc
                     total_test_bbox_accuracy += bbox_acc
@@ -182,9 +186,9 @@ class Trainer():
                         'loss':loss.item(),
                         'avg_loss': avg_loss,
                         'avg_acc': avg_acc,
-                        'avg_cls_acc': avg_cls_acc,
-                        'avg_bbox_acc': avg_bbox_acc,
-                        'avg_ldmk_acc': avg_ldmk_acc
+                        #'avg_cls_acc': avg_cls_acc,
+                        #'avg_bbox_acc': avg_bbox_acc,
+                        #'avg_ldmk_acc': avg_ldmk_acc
                     })
                 pbar.set_postfix(postfix_dict)
                 pbar.update(1)
@@ -217,6 +221,12 @@ class Trainer():
 
         if not self.is_setup:
             self.is_setup = True
+
+        # send model to device
+        self.model = self.model.to(self.device)
+
+        if self.acc_fn is not None:
+            self.acc_fn.set_device(self.device)
 
         return self
 

@@ -113,6 +113,25 @@ class ConsoleLogWriter(LogWriter):
         # end of one line
         print()
 
+from tqdm import tqdm
+
+class TqdmLogWriter(LogWriter):
+    def __call__(self, log_items: list[LogItem]) -> None:
+        for item in log_items:
+            if len(item.key) == 0 and len(item.value) == 0:
+                continue;
+
+            if len(item.key) == 0:
+                tqdm.write(f"{item.value}", end=" ")
+            elif len(item.value) == 0:
+                tqdm.write(f"[{item.key}]", end=" ")
+            else:
+                tqdm.write(f"[{item.key}]: {item.value}", end=" ")
+                
+        # end of one line
+        tqdm.write("")
+
+
 
 class DebugLogger(Logger):
     def __init__(self, module_name: str, log_writer: LogWriter, level: int = 1) -> None:
